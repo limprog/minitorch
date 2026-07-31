@@ -15,7 +15,7 @@ private:
 public:
 
 
-    Tensor(const std::initializer_list<std::size_t>& shape, float value);
+    Tensor(const std::initializer_list<std::size_t>& shape, float value = 0.0f);
 
     float& operator() (const std::initializer_list<std::size_t>& indices);
 

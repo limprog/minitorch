@@ -32,7 +32,7 @@ void Tensor::calculate_strides() {
 
     std::size_t stride = 1;
 
-    for (std::size_t i = shape_.size() - 1; i-- > 0) {
+    for (std::size_t i = shape_.size() - 1; i-- > 0; ) {
         strides_[i] = stride;
         stride *= shape_[i];
     }
@@ -40,7 +40,7 @@ void Tensor::calculate_strides() {
 }
 
 
-Tensor::Tensor(const std::initializer_list<std::size_t>& shape, float value = 0.0f)
+Tensor::Tensor(const std::initializer_list<std::size_t>& shape, float value)
     : shape_(shape)
 {
 
@@ -57,3 +57,16 @@ Tensor::Tensor(const std::initializer_list<std::size_t>& shape, float value = 0.
     calculate_strides();
 
 }
+
+
+float& Tensor::operator()(const std::initializer_list<std::size_t>& indices) {
+    std::vector<std::size_t> index(indices);
+    return data_[flatten_index(index)];
+
+}
+
+const std::vector<std::size_t>& Tensor::get_shape() {
+    return shape_;
+}
+
+
