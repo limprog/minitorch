@@ -12,7 +12,7 @@
 #include <regex>
 
 
-Tensor::Tensor(const std::initializer_list<std::size_t>& shape, float value)
+Tensor::Tensor(const std::initializer_list<std::size_t>& shape, float value, bool requires_grad)
     : shape_(shape)
 {
 
@@ -24,11 +24,12 @@ Tensor::Tensor(const std::initializer_list<std::size_t>& shape, float value)
         );
 
     storage_ = std::make_shared<Storage>();
-
     storage_->data_.resize(size);
     std::fill(storage_->data_.begin(), storage_->data_.end(), value);
+
     shape_ = shape;
-    node_ = std::make_shared<AutogradNode>();
+    if (requires_grad)
+        node_ = std::make_shared<AutogradNode>();
 
     calculate_strides();
 
@@ -36,7 +37,7 @@ Tensor::Tensor(const std::initializer_list<std::size_t>& shape, float value)
 }
 
 
-Tensor::Tensor(const std::vector<std::size_t>& shape, float value)
+Tensor::Tensor(const std::vector<std::size_t>& shape, float value, bool requires_grad)
     : shape_(shape)
 {
 
@@ -52,7 +53,8 @@ Tensor::Tensor(const std::vector<std::size_t>& shape, float value)
     storage_->data_.resize(size);
     std::fill(storage_->data_.begin(), storage_->data_.end(), value);
     shape_ = shape;
-    node_ = std::make_shared<AutogradNode>();
+    if (requires_grad)
+        node_ = std::make_shared<AutogradNode>();
 
     calculate_strides();
 }

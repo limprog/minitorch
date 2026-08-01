@@ -24,7 +24,6 @@ private:
 
     bool is_contiguous() const;
 
-
     void calculate_strides();
 
     std::size_t flatten_index(std::vector<std::size_t> indices) const;
@@ -47,12 +46,12 @@ private:
         std::size_t batch_count) const;
 
     void accumulate_grad(const Tensor& grad) const;
-
+    static void accumulate_grad(const std::shared_ptr<AutogradNode>& node, const Tensor& grad);
 
 public:
 
-    Tensor(const std::initializer_list<std::size_t>& shape, float value = 0.0f);
-    Tensor(const std::vector<std::size_t>& shape, float value = 0.0f);
+    Tensor(const std::initializer_list<std::size_t>& shape, float value = 0.0f, bool requires_grad = true);
+    Tensor(const std::vector<std::size_t>& shape, float value = 0.0f, bool requires_grad = true);
 
     float& operator() (const std::initializer_list<std::size_t>& indices);
     const float& operator()(const std::initializer_list<std::size_t>& indices) const;

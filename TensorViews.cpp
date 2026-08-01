@@ -81,9 +81,19 @@ Tensor Tensor::transpose(std::size_t dim1, std::size_t dim2) const {
                 parent.accumulate_grad(grad);
         };
 
+    } else {
+        result.node_.reset();
     }
     return result;
 
+}
+
+
+Tensor Tensor::T() const {
+    if (shape_.size() < 2) {
+        throw std::invalid_argument("Tensor::T: shape must be at least two");
+    }
+    return transpose(shape_.size() - 2, shape_.size() - 1);
 }
 
 
