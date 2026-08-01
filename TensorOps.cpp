@@ -18,7 +18,7 @@ Tensor Tensor::operator+(const Tensor& other) const{
         throw std::invalid_argument("Tensor::operator+: tensor should be contiguous");
     }
 
-    Tensor result(shape_);
+    Tensor result = copy_for_operation();
 
     for (std::size_t i = 0; i < storage_->data_.size(); i++) {
         result.storage_->data_[i] = storage_->data_[i] + other.storage_->data_[i];
@@ -27,8 +27,6 @@ Tensor Tensor::operator+(const Tensor& other) const{
     if (requires_grad() || other.requires_grad()) {
         const auto A_node = this->node_;
         const auto B_node = other.node_;
-
-        result.node_ = std::make_shared<AutogradNode>();
 
         if (A_node) {
             result.node_->parents.push_back(A_node);
@@ -51,6 +49,53 @@ Tensor Tensor::operator+(const Tensor& other) const{
 }
 
 
+Tensor Tensor::operator-() const {
+    return (*this) * -1.0f;
+}
+
+
+Tensor Tensor::operator-(const Tensor& other) const {
+    if (shape_ != other.shape_) {
+        throw std::invalid_argument("Tensor::operator-: shape should be the same");
+    }
+
+    if (!is_contiguous() || !other.is_contiguous()) {
+        throw std::invalid_argument("Tensor::operator-: tensors should be contiguous");
+    }
+
+    Tensor result = copy_for_operation();
+
+    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
+        result.storage_->data_[i] = storage_->data_[i] - other.storage_->data_[i];
+    }
+
+    if (requires_grad() || other.requires_grad()) {
+        const auto A_node = this->node_;
+        const auto B_node = other.node_;
+
+
+        if (A_node) {
+            result.node_->parents.push_back(A_node);
+        }
+
+        if (B_node) {
+            result.node_->parents.push_back(B_node);
+        }
+
+        result.node_->backward_fn =
+            [A_node, B_node](const Tensor& grad) {
+                if (A_node) accumulate_grad(A_node, grad);
+                if (B_node) accumulate_grad(B_node, -grad);
+        };
+    } else {
+        result.node_.reset();
+    }
+
+    return result;
+}
+
+
+
 Tensor Tensor::operator*(const Tensor& other) const{
     if (shape_ != other.shape_) {
         throw std::invalid_argument("Tensor::operator*: shape should be the same");
@@ -59,7 +104,7 @@ Tensor Tensor::operator*(const Tensor& other) const{
         throw std::invalid_argument("Tensor::operator*: tensor should be contiguous");
     }
 
-    Tensor result(other.shape_);
+    Tensor result = copy_for_operation();
 
     for (std::size_t i = 0; i < storage_->data_.size(); i++) {
         result.storage_->data_[i] = storage_->data_[i] * other.storage_->data_[i];
@@ -97,3 +142,30 @@ Tensor Tensor::operator*(const Tensor& other) const{
 
     return result;
 }
+
+Tensor Tensor::operator*(float scalar) const {
+    Tensor result = copy_for_operation();
+
+    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
+        result.storage_->data_[i] = storage_->data_[i] * scalar;
+    }
+
+    if (requires_grad()) {
+        const auto A_node = this->node_;
+        result.node_->parents.push_back(A_node);
+
+        result.node_->backward_fn = [scalar, A_node](const Tensor& grad_out) {
+            accumulate_grad(A_node, grad_out * scalar);
+        };
+    } else {
+        result.node_.reset();
+    }
+
+    return result;
+}
+
+
+Tensor operator*(float scalar, const Tensor& other) {
+    return other * scalar;
+}
+

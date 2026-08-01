@@ -48,6 +48,8 @@ private:
     void accumulate_grad(const Tensor& grad) const;
     static void accumulate_grad(const std::shared_ptr<AutogradNode>& node, const Tensor& grad);
 
+    Tensor copy_for_operation() const;
+
 public:
 
     Tensor(const std::initializer_list<std::size_t>& shape, float value = 0.0f, bool requires_grad = true);
@@ -101,8 +103,13 @@ public:
     Tensor transpose(std::size_t dim1, std::size_t dim2) const;
     Tensor T() const;
 
+
+
     Tensor operator+(const Tensor& other) const;
+    Tensor operator-(const Tensor& other) const;
+    Tensor operator-() const;
     Tensor operator*(const Tensor& other) const;
+    Tensor operator*(float scalar) const;
     Tensor matmul(const Tensor& other) const;
 
     Tensor detach() const;
@@ -121,3 +128,6 @@ struct AutogradNode {
 
     std::function<void(const Tensor&)> backward_fn;
 };
+
+
+Tensor operator*(float scalar, const Tensor& tensor);

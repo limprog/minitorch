@@ -137,11 +137,35 @@ Tensor& Tensor::fill_(float value) {
 
 
 Tensor Tensor::copy() const {
-    Tensor result(shape_);
+    Tensor result = *this;
 
-    result.storage_->data_ = storage_->data_;
+    result.storage_= std::make_shared<Storage>(*storage_);
+
+    if (requires_grad) {
+        const auto A_node = node_;
+
+        result.node_ = std::make_shared<AutogradNode>();
+        result.node_->parents.push_back(A_node);
+
+        result.node_->backward_fn =[A_node](const Tensor& grad) {
+            accumulate_grad(A_node, grad);
+        };
+    } else {
+        result.node_.reset();
+    }
+
     return result;
 }
+
+
+Tensor Tensor::copy_for_operation() const {
+    Tensor result = *this;
+
+    result.storage_ = std::make_shared<Storage>(*storage_);
+    result.node_ = std::make_shared<AutogradNode>();
+    return result;
+}
+
 
 
 Tensor Tensor::detach() const {
