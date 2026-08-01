@@ -1,13 +1,29 @@
 #include <vector>
 #include <cstddef>
+#include <memory>
 #include <ostream>
+#include <type_traits>
+#include <functional>
+
+
+struct Storage {
+    std::vector<float> data_;
+};
+
+
+struct AutogradNode;
 
 
 class Tensor {
 private:
-    std::vector<float> data_;
+    std::shared_ptr<Storage> storage_;
     std::vector<std::size_t> shape_;
     std::vector<std::size_t> strides_;
+
+    std::shared_ptr<AutogradNode> node_;
+
+    bool is_contiguous() const;
+
 
     void calculate_strides();
 
@@ -30,6 +46,9 @@ private:
         std::size_t inner,
         std::size_t batch_count) const;
 
+    void accumulate_grad(const Tensor& grad) const;
+
+
 public:
 
     Tensor(const std::initializer_list<std::size_t>& shape, float value = 0.0f);
@@ -38,7 +57,37 @@ public:
     float& operator() (const std::initializer_list<std::size_t>& indices);
     const float& operator()(const std::initializer_list<std::size_t>& indices) const;
 
+    template<typename... Indices>
+   float& operator[](Indices... indices) {
+       static_assert(
+           (std::is_convertible_v<Indices, std::size_t> && ...),
+           "Tensor indices must be integer-like"
+       );
+
+       return storage_->data_[flatten_index(
+           std::vector<std::size_t>{
+               static_cast<std::size_t>(indices)...
+           }
+       )];
+    }
+
+    template<typename... Indices>
+    const float& operator[](Indices... indices) const {
+        static_assert(
+            (std::is_convertible_v<Indices, std::size_t> && ...),
+            "Tensor indices must be integer-like"
+        );
+
+        return storage_->data_[flatten_index(
+            std::vector<std::size_t>{
+                static_cast<std::size_t>(indices)...
+            }
+        )];
+    };
+
     const std::vector<std::size_t>& get_shape();
+
+    bool requires_grad() const;
 
     Tensor& fill_(float value);
 
@@ -50,12 +99,26 @@ public:
     Tensor& squeeze_(std::size_t axis);
     Tensor squeeze(std::size_t axis) const;
 
-
+    Tensor transpose(std::size_t dim1, std::size_t dim2) const;
+    Tensor T() const;
 
     Tensor operator+(const Tensor& other) const;
     Tensor operator*(const Tensor& other) const;
     Tensor matmul(const Tensor& other) const;
 
+    Tensor detach() const;
+
+    Tensor copy() const;
+
     friend std::ostream& operator<<(std::ostream& os, const Tensor& tensor);
 
+};
+
+
+struct AutogradNode {
+    std::optional<Tensor> grad;
+
+    std::vector<std::shared_ptr<AutogradNode>> parents;
+
+    std::function<void(const Tensor&)> backward_fn;
 };
