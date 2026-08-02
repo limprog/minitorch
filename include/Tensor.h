@@ -116,8 +116,6 @@ public:
     Tensor grad() const;
 
 
-    // TODO: crated tesnsors
-
     static Tensor ones(const std::initializer_list<std::size_t> shape);
     static Tensor zeros(const std::initializer_list<std::size_t> shape);
     static Tensor unifrom(
