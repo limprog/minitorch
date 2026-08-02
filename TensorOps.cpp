@@ -9,24 +9,106 @@
 #include <regex>
 
 
+std::size_t Tensor::broadcast_index(
+        const std::vector<std::size_t>& indices,
+        const std::vector<std::size_t>& shape,
+        const std::vector<std::size_t>& stride) {
+    const std::size_t rank_diff = indices.size() - shape.size();
+
+    std::size_t offset = 0;
+    for (std::size_t i = 0; i < shape.size(); i++) {
+        const std::size_t index = shape[i] == 1 ? 0 : indices[i + rank_diff];
+        offset += stride[i] * index;
+    }
+
+    return offset;
+
+}
+
+
+std::vector<std::size_t> Tensor::broadcast_shape(const std::vector<std::size_t> &a_shape, const std::vector<std::size_t> &b_shape) {
+    std::size_t rank = std::max(a_shape.size(), b_shape.size());
+
+    std::vector<std::size_t> result(rank);
+
+    for (std::size_t i = 0; i < rank; i++) {
+        std::size_t a_dim = i + 1 > a_shape.size() ? 1 : a_shape[a_shape.size() - i - 1];
+        std::size_t b_dim = i + 1 > b_shape.size() ? 1 : b_shape[b_shape.size() - i - 1];
+
+        if (a_dim != b_dim && a_dim != 1 && b_dim != 1) {
+            throw std::invalid_argument("Tensor::broadcast_shape does not support this shapes");
+        }
+
+        result[rank - i - 1] = std::max(a_dim, b_dim);
+    }
+    return result;
+}
+
+Tensor Tensor::binary_operation_kernel(const Tensor &other, const std::function<float(float, float)> &operation) const {
+    const auto new_shape = broadcast_shape(shape_, other.shape_);
+
+    Tensor result(new_shape, 0.0f, false);
+
+    std::vector<std::size_t> indices(new_shape.size());
+
+    for (std::size_t flat = 0; flat < result.storage_->data_.size(); flat++) {
+        std::size_t temp = flat;
+
+        for (std::size_t dim = new_shape.size(); dim-- > 0; ) {
+            indices[dim] = temp % new_shape[dim];
+            temp /= new_shape[dim];
+        }
+
+        const std::size_t index_a = broadcast_index(indices, shape_, strides_);
+        const std::size_t index_b = broadcast_index(indices, other.shape_, other.strides_);
+
+        result.storage_->data_[flat] = operation(storage_->data_[index_a], other.storage_->data_[index_b]);
+    }
+
+    return result;
+}
+
+
+Tensor Tensor::sum_to_shape_without_grad(const Tensor &tensor, const std::vector<std::size_t> &new_shape) {
+    if (broadcast_shape(new_shape, tensor.shape_) != tensor.shape_) {
+        throw std::invalid_argument(
+            "Tensor::sum_to_shape_without_grad: incompatible shapes"
+        );
+    }
+
+    if (!tensor.is_contiguous())
+        throw std::invalid_argument("Tensor::sum_to_shape_without_grad: tensor is not contiguous");
+
+    Tensor result(new_shape, 0.0f, false);
+
+    std::vector<std::size_t> indices(tensor.shape_.size());
+
+    for (std::size_t flat = 0; flat < tensor.storage_->data_.size(); flat++) {
+        std::size_t temp = flat;
+        for (std::size_t dim = tensor.shape_.size(); dim-- > 0; ) {
+            indices[dim] = temp % tensor.shape_[dim];
+            temp /= tensor.shape_[dim];
+        }
+        const std::size_t index = broadcast_index(indices, result.shape_, result.strides_);
+
+        result.storage_->data_[index] += tensor.storage_->data_[flat];
+    }
+    return result;
+}
+
+
+
 Tensor Tensor::operator+(const Tensor& other) const{
-    if (shape_ != other.shape_) {
-        throw std::invalid_argument("Tensor::operator+: shape should be the same");
-    }
-
-    if (!is_contiguous() || !other.is_contiguous()) {
-        throw std::invalid_argument("Tensor::operator+: tensor should be contiguous");
-    }
-
-    Tensor result = copy_for_operation();
-
-    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
-        result.storage_->data_[i] = storage_->data_[i] + other.storage_->data_[i];
-    }
+    Tensor result = binary_operation_kernel(other, [](float lhs, float rhs){return lhs + rhs;});
 
     if (requires_grad() || other.requires_grad()) {
+        result.node_ = std::make_shared<AutogradNode>();
+
         const auto A_node = this->node_;
         const auto B_node = other.node_;
+
+        const auto A_shape = this->shape_;
+        const auto B_shape = other.shape_;
 
         if (A_node) {
             result.node_->parents.push_back(A_node);
@@ -37,12 +119,16 @@ Tensor Tensor::operator+(const Tensor& other) const{
         }
 
         result.node_->backward_fn =
-            [A_node, B_node](const Tensor& grad) {
-                if (A_node) accumulate_grad(A_node, grad);
-                if (B_node) accumulate_grad(B_node, grad);
+            [A_node, B_node, A_shape, B_shape](const Tensor& grad) {
+                if (A_node) {
+                    Tensor grad_A = sum_to_shape_without_grad(grad, A_shape);
+                    accumulate_grad(A_node, grad_A);
+                }
+                if (B_node) {
+                    Tensor grad_B = sum_to_shape_without_grad(grad, B_shape);
+                    accumulate_grad(B_node, grad_B);
+                }
             };
-    } else {
-        result.node_.reset();
     }
 
     return result;
@@ -55,24 +141,17 @@ Tensor Tensor::operator-() const {
 
 
 Tensor Tensor::operator-(const Tensor& other) const {
-    if (shape_ != other.shape_) {
-        throw std::invalid_argument("Tensor::operator-: shape should be the same");
-    }
+    Tensor result = binary_operation_kernel(other, [](float lhs, float rhs){return lhs - rhs;});
 
-    if (!is_contiguous() || !other.is_contiguous()) {
-        throw std::invalid_argument("Tensor::operator-: tensors should be contiguous");
-    }
-
-    Tensor result = copy_for_operation();
-
-    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
-        result.storage_->data_[i] = storage_->data_[i] - other.storage_->data_[i];
-    }
 
     if (requires_grad() || other.requires_grad()) {
         const auto A_node = this->node_;
         const auto B_node = other.node_;
 
+        const auto A_shape = this->shape_;
+        const auto B_shape = other.shape_;
+
+        result.node_ = std::make_shared<AutogradNode>();
 
         if (A_node) {
             result.node_->parents.push_back(A_node);
@@ -83,12 +162,16 @@ Tensor Tensor::operator-(const Tensor& other) const {
         }
 
         result.node_->backward_fn =
-            [A_node, B_node](const Tensor& grad) {
-                if (A_node) accumulate_grad(A_node, grad);
-                if (B_node) accumulate_grad(B_node, -grad);
+            [A_node, B_node, A_shape, B_shape](const Tensor& grad) {
+                if (A_node) {
+                    Tensor grad_A = sum_to_shape_without_grad(grad, A_shape);
+                    accumulate_grad(A_node, grad_A);
+                }
+                if (B_node) {
+                    Tensor grad_B = sum_to_shape_without_grad(-grad, B_shape);
+                    accumulate_grad(B_node, grad_B);
+                };
         };
-    } else {
-        result.node_.reset();
     }
 
     return result;
@@ -97,26 +180,15 @@ Tensor Tensor::operator-(const Tensor& other) const {
 
 
 Tensor Tensor::operator*(const Tensor& other) const{
-    if (shape_ != other.shape_) {
-        throw std::invalid_argument("Tensor::operator*: shape should be the same");
-    }
-    if (!is_contiguous() || !other.is_contiguous()) {
-        throw std::invalid_argument("Tensor::operator*: tensor should be contiguous");
-    }
-
-    Tensor result = copy_for_operation();
-
-    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
-        result.storage_->data_[i] = storage_->data_[i] * other.storage_->data_[i];
-    }
+    Tensor result = binary_operation_kernel(other, [](float lhs, float rhs){return lhs * rhs;});
 
     if (requires_grad() || other.requires_grad()) {
         const auto A_node = this->node_;
         const auto B_node = other.node_;
 
-        const auto A = *this;
-        const auto B = other;
-
+        const auto A_data = this->detach();
+        const auto B_data = other.detach();
+        result.node_ = std::make_shared<AutogradNode>();
         if (A_node) {
             result.node_->parents.push_back(A_node);
         }
@@ -126,18 +198,18 @@ Tensor Tensor::operator*(const Tensor& other) const{
         }
 
         result.node_->backward_fn =
-            [A, B](const Tensor& grad_out) {
-                if (A.requires_grad()) {
-                    Tensor grad_a = grad_out * B.detach();
-                    A.accumulate_grad(grad_a);
+            [A_node, B_node, A_data, B_data](const Tensor& grad_out) {
+                if (A_node) {
+                    Tensor grad_A = grad_out * B_data;
+                    grad_A = sum_to_shape_without_grad(grad_A, A_data.shape_);
+                    accumulate_grad(A_node, grad_A);
                 }
-                if (B.requires_grad()) {
-                    Tensor grad_b = grad_out * A.detach();
-                    B.accumulate_grad(grad_b);
+                if (B_node) {
+                    Tensor grad_b = grad_out * A_data;
+                    grad_b = sum_to_shape_without_grad(grad_b, B_data.shape_);
+                    accumulate_grad(B_node, grad_b);
                 }
             };
-    } else {
-        result.node_.reset();
     }
 
     return result;

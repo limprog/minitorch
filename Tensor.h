@@ -28,6 +28,7 @@ private:
     void calculate_strides();
 
     std::size_t flatten_index(std::vector<std::size_t> indices) const;
+
     void matmul_matrix_kernel(
         const Tensor& other,
         Tensor& result,
@@ -37,6 +38,12 @@ private:
         std::size_t rows,
         std::size_t cols,
         std::size_t inner) const;
+
+
+    static std::size_t broadcast_index(
+        const std::vector<std::size_t>& indices,
+        const std::vector<std::size_t>& shape,
+        const std::vector<std::size_t>& stride);
 
     std::size_t batch_offset(std::size_t batch_index) const;
 
@@ -55,7 +62,13 @@ private:
         std::vector<std::shared_ptr<AutogradNode>>& path
         );
 
+    static std::vector<std::size_t> broadcast_shape (
+        const std::vector<std::size_t>& a_shape,
+        const std::vector<std::size_t>& b_shape);
 
+    static Tensor sum_to_shape_without_grad(const Tensor& tensor, const std::vector<std::size_t>& new_shape);
+
+    Tensor binary_operation_kernel(const Tensor& other, const std::function<float(float, float)>& operation) const;
     Tensor copy_for_operation() const;
 
 public:
@@ -114,8 +127,6 @@ public:
 
     Tensor transpose(std::size_t dim1, std::size_t dim2) const;
     Tensor T() const;
-
-
 
     Tensor operator+(const Tensor& other) const;
     Tensor operator-(const Tensor& other) const;
