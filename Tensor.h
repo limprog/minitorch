@@ -98,6 +98,8 @@ public:
 
     Tensor& reshape_(std::initializer_list<std::size_t> shape);
     Tensor reshape(std::initializer_list<std::size_t> shape) const;
+    Tensor& reshape_(std::vector<std::size_t> shape);
+    Tensor reshape(std::vector<std::size_t> shape) const;
 
     Tensor& unsqueeze_(std::size_t axis);
     Tensor unsqueeze(std::size_t axis) const;

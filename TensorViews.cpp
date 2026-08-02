@@ -33,9 +33,20 @@ Tensor& Tensor::unsqueeze_(std::size_t axis) {
 
 
 Tensor Tensor::unsqueeze(std::size_t axis) const{
-    Tensor result(*this);
-
+    Tensor result = copy_for_operation();
     result.unsqueeze_(axis);
+
+    if (requires_grad()) {
+        const auto A_node = this->node_;
+
+        result.node_->parents.push_back(A_node);
+
+        result.node_->backward_fn = [axis, A_node](const Tensor& grad_out) {
+            accumulate_grad(A_node, grad_out.squeeze(axis));
+        };
+    } else {
+        result.node_.reset();
+    }
     return result;
 }
 
@@ -56,8 +67,20 @@ Tensor& Tensor::squeeze_(std::size_t axis) {
 
 
 Tensor Tensor::squeeze(std::size_t axis) const {
-    Tensor result = *this;
+    Tensor result = copy_for_operation();
     result.squeeze_(axis);
+
+    if (requires_grad()) {
+        const auto A_node = this->node_;
+
+        result.node_->parents.push_back(A_node);
+
+        result.node_->backward_fn = [axis, A_node](const Tensor& grad_out) {
+            accumulate_grad(A_node, grad_out.unsqueeze(axis));
+        };
+    } else {
+        result.node_.reset();
+    }
     return result;
 }
 
@@ -120,8 +143,67 @@ Tensor& Tensor::reshape_(std::initializer_list<std::size_t> shape) {
 }
 
 
+Tensor& Tensor::reshape_(std::vector<std::size_t> shape) {
+    std::size_t new_size = std::accumulate(
+        shape.begin(),
+        shape.end(),
+        std::size_t{1},
+        std::multiplies<std::size_t>());
+    if (new_size != storage_->data_.size()) {
+        throw std::invalid_argument("Tensor::reshape: new_size should be equal to storege_->data_.size()");
+    }
+
+    if (!is_contiguous()) {
+        throw std::invalid_argument("Tensor::reshape: tensor must be contiguoes");
+    }
+
+
+    shape_ = shape;
+    calculate_strides();
+
+    return *this;
+}
+
+
 Tensor Tensor::reshape(std::initializer_list<std::size_t> shape) const{
-    Tensor result(*this);
+    Tensor result = copy_for_operation();
     result.reshape_(shape);
+
+    const std::vector<std::size_t> new_shape(shape);
+    const std::vector<std::size_t> old_shape = shape_;
+    const auto parent = node_;
+
+    if (requires_grad()) {
+      result.node_->parents = {parent};
+
+      result.node_->backward_fn = [parent, old_shape](const Tensor& grad_out) {
+          accumulate_grad(parent, grad_out.reshape(old_shape));
+
+      };
+    } else {
+      result.node_.reset();
+    }
+    return result;
+}
+
+
+Tensor Tensor::reshape(std::vector<std::size_t> shape) const{
+    Tensor result = copy_for_operation();
+    result.reshape_(shape);
+
+    const std::vector<std::size_t> new_shape(shape);
+    const std::vector<std::size_t> old_shape = shape_;
+    const auto parent = node_;
+
+    if (requires_grad()) {
+        result.node_->parents = {parent};
+
+        result.node_->backward_fn = [parent, old_shape](const Tensor& grad_out) {
+            accumulate_grad(parent, grad_out.reshape(old_shape));
+
+        };
+    } else {
+      result.node_.reset();
+    }
     return result;
 }
