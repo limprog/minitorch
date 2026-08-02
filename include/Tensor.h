@@ -118,6 +118,23 @@ public:
 
     // TODO: crated tesnsors
 
+    static Tensor ones(const std::initializer_list<std::size_t> shape);
+    static Tensor zeros(const std::initializer_list<std::size_t> shape);
+    static Tensor unifrom(
+        const std::initializer_list<std::size_t> shape,
+        float min,
+        float max);
+    static Tensor normal(
+        const std::initializer_list<std::size_t> shape,
+        float mean,
+        float stddev);
+
+    static Tensor zeros_like(const Tensor& tensor);
+    static Tensor ones_like(const Tensor& tensor);
+    static Tensor unifrom_like(const Tensor& tensor, float min, float max);
+    static Tensor normal_like(const Tensor& tensor, float mean, float stddev);
+
+
     std::size_t numel() const;
 
     //full
