@@ -213,6 +213,7 @@ std::ostream& operator<<(std::ostream& os, const Tensor& tensor) {
         }
     }
 
-    os << "])";
+    os << "], requires_grad=";
+    os << tensor.requires_grad() << ")";
     return os;
 }
