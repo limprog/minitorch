@@ -88,6 +88,9 @@ Tensor Tensor::squeeze(std::size_t axis) const {
 
 
 Tensor Tensor::transpose(std::size_t dim1, std::size_t dim2) const {
+    if (dim1 >= shape_.size() || dim2 >= shape_.size()) {
+        throw std::invalid_argument("Tensor::transpose: dimension must be less than Tensor::shape");
+    }
     Tensor result = *this;
 
     std::swap(result.shape_[dim1], result.shape_[dim2]);
