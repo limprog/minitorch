@@ -29,3 +29,14 @@ std::vector<Tensor*> Module::parameters() {
 
     return params;
 }
+
+
+Tensor Module::forward(const Tensor& input) const {
+    Tensor result = input;
+    return result;
+}
+
+
+Tensor Module::operator()(const Tensor &input) const {
+    return forward(input);
+}

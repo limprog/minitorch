@@ -7,7 +7,7 @@
 
 
 class ReLU : public Module {
-public
+public:
 
     Tensor forward(const Tensor& input) const;
-}
+};

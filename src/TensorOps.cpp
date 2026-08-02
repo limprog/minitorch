@@ -266,7 +266,7 @@ Tensor Tensor::mean() const {
 }
 
 
-Tensor Tensor::where(cosnt &condition, float if_true, float if_false) const {
+Tensor Tensor::where(const std::function<bool(float)>& condition, float if_true, float if_false) const {
     Tensor result(shape_, 0, false);
 
     for (std::size_t i = 0; i < result.numel(); i++) {

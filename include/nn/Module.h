@@ -16,6 +16,11 @@ public:
 
     std::vector<Tensor*> parameters();
 
+    Tensor forward(const Tensor& input) const;
+
+    Tensor operator()(const Tensor& input) const;
+
+
     Module(const Module&) = delete;
     Module() = default;
 

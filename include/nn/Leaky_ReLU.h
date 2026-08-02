@@ -13,4 +13,4 @@ public:
 
 
     Tensor forward(const Tensor& input) const;
-}
+};

@@ -161,7 +161,7 @@ public:
 
     Tensor sum() const;
     Tensor mean() const;
-    Tensor where(cosnt std::function<bool(float)>& condition, float if_true, float if_false ) const;
+    Tensor where(const std::function<bool(float)>& condition, float if_true, float if_false ) const;
     Tensor relu() const;
     Tensor leaky_relu(float alpha) const;
 
