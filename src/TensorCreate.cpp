@@ -69,5 +69,3 @@ Tensor Tensor::normal_like(const Tensor &tensor, float mean, float stddev) {
 
     return new_tensor;
 }
-
-

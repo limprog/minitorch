@@ -158,8 +158,12 @@ public:
     Tensor operator*(const Tensor& other) const;
     Tensor operator*(float scalar) const;
     Tensor matmul(const Tensor& other) const;
+
     Tensor sum() const;
     Tensor mean() const;
+    Tensor where(cosnt std::function<bool(float)>& condition, float if_true, float if_false ) const;
+    Tensor relu() const;
+    Tensor leaky_relu(float alpha) const;
 
 
 

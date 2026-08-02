@@ -266,6 +266,69 @@ Tensor Tensor::mean() const {
 }
 
 
+Tensor Tensor::where(cosnt &condition, float if_true, float if_false) const {
+    Tensor result(shape_, 0, false);
+
+    for (std::size_t i = 0; i < result.numel(); i++) {
+        if (condition(result.storage_->data_[i])) {
+            result.storage_->data_[i] = if_true;
+        } else {
+            result.storage_->data_[i] = if_false;
+        }
+    }
+    return result;
+}
+
+
+Tensor Tensor::relu() const{
+    Tensor result = copy_for_operation();
+
+    for (std::size_t i = 0; i < result.numel(); i++) {
+        if (result.storage_->data_[i] <= 0) {
+            result.storage_->data_[i] = 0;
+        }
+    }
+
+    if (requires_grad()) {
+        const auto A_node = this->node_;
+        const auto A_data = this->detach();
+
+        result.node_->parents.push_back(A_node);
+        result.node_->backward_fn = [A_node, A_data](const Tensor& grad_out) {
+            const auto grad_mask = A_data.where([](float x){return x > 0;}, 1, 0);
+            accumulate_grad(A_node, grad_mask*grad_out);
+        };
+    } else {
+        result.node_.reset();
+    }
+
+    return result;
+}
+
+
+Tensor Tensor::leaky_relu(float alpha) const {
+    Tensor result = copy_for_operation();
+
+    for (std::size_t i = 0; i < result.numel(); i++) {
+        if (result.storage_->data_[i] <= 0) {
+            result.storage_->data_[i] *= alpha;
+        }
+    }
+    if (requires_grad()) {
+        const auto A_node = this->node_;
+        const auto A_data = this->detach();
+
+        result.node_->parents.push_back(A_node);
+        result.node_->backward_fn = [A_node, A_data, alpha](const Tensor& grad_out) {
+            auto grad_mask = A_data.where([](float x){return x > 0;}, 1, alpha);
+            accumulate_grad(A_node, grad_mask * grad_out);
+        };
+    }
+    return result;
+}
+
+
+
 Tensor operator*(float scalar, const Tensor& other) {
     return other * scalar;
 }
