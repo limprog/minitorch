@@ -237,6 +237,18 @@ Tensor Tensor::operator*(float scalar) const {
 }
 
 
+void Tensor::sub_(const Tensor &other, float alpha) {
+    if (shape_ != other.shape_) {
+        throw std::invalid_argument("Tensor::sub_: shape mismatch");
+    }
+
+    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
+        storage_->data_[i] -= other.storage_->data_[i] *  alpha;
+    }
+}
+
+
+
 Tensor Tensor::sum() const {
     Tensor result({1}, 0, requires_grad());
 
@@ -270,7 +282,7 @@ Tensor Tensor::where(const std::function<bool(float)>& condition, float if_true,
     Tensor result(shape_, 0, false);
 
     for (std::size_t i = 0; i < result.numel(); i++) {
-        if (condition(result.storage_->data_[i])) {
+        if (condition(storage_->data_[i])) {
             result.storage_->data_[i] = if_true;
         } else {
             result.storage_->data_[i] = if_false;

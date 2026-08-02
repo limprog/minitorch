@@ -112,8 +112,11 @@ public:
     void flat_index_fill(std::size_t index, float value);
 
     bool requires_grad() const;
+    bool has_grad() const;
+    void zero_grad();
     void backward() const;
     Tensor grad() const;
+
 
 
     static Tensor ones(const std::initializer_list<std::size_t> shape);
@@ -158,6 +161,8 @@ public:
     Tensor operator*(const Tensor& other) const;
     Tensor operator*(float scalar) const;
     Tensor matmul(const Tensor& other) const;
+
+    void sub_(const Tensor& other, float alpha);
 
     Tensor sum() const;
     Tensor mean() const;

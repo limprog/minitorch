@@ -19,6 +19,9 @@ void Linear::init_weight(InitType init_type) {
         case InitType::Ones:
             init::ones(weights_);
         break;
+        case InitType::Zeros:
+            init::zeros(weights_);
+        break;
         default:
             throw std::invalid_argument("Invalid initialization type");
     }

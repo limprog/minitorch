@@ -37,6 +37,21 @@ bool Tensor::requires_grad() const {
     return node_ != nullptr;
 }
 
+bool Tensor::has_grad() const {
+    if (node_ == nullptr) {
+        return false;
+    }
+    return node_->grad.has_value();
+}
+
+
+void Tensor::zero_grad() {
+    if (node_ == nullptr) {
+        throw std::runtime_error("Tensor::zero_grad: grad not requerd");
+    }
+    node_->grad.reset();
+}
+
 
 void Tensor::build_path(const std::shared_ptr<AutogradNode> &node, std::unordered_set<AutogradNode*> &visited, std::vector<std::shared_ptr<AutogradNode>> &path) {
     if (!node || visited.contains(node.get())) {
