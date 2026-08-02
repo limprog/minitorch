@@ -37,6 +37,9 @@ private:
         std::size_t cols,
         std::size_t inner) const;
 
+    std::size_t batch_offset(std::size_t batch_index) const;
+
+
 
     void batched_matmul(const Tensor& other,
         Tensor& result,
@@ -47,6 +50,7 @@ private:
 
     void accumulate_grad(const Tensor& grad) const;
     static void accumulate_grad(const std::shared_ptr<AutogradNode>& node, const Tensor& grad);
+
 
     Tensor copy_for_operation() const;
 

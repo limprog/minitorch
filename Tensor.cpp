@@ -81,6 +81,21 @@ std::size_t Tensor::flatten_index(std::vector<std::size_t> indices) const {
 }
 
 
+std::size_t Tensor::batch_offset(std::size_t batch_index) const {
+    std::size_t offset = 0;
+
+    for (std::size_t i = shape_.size() - 2; i-- > 0;) {
+        const std::size_t index = batch_index % shape_[i];
+        batch_index /= shape_[i];
+
+        offset += index * strides_[i];
+    }
+
+    return offset;
+}
+
+
+
 void Tensor::calculate_strides() {
     strides_.resize(shape_.size());
 
@@ -141,7 +156,7 @@ Tensor Tensor::copy() const {
 
     result.storage_= std::make_shared<Storage>(*storage_);
 
-    if (requires_grad) {
+    if (requires_grad()) {
         const auto A_node = node_;
 
         result.node_ = std::make_shared<AutogradNode>();
