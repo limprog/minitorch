@@ -117,6 +117,8 @@ public:
     Tensor operator*(const Tensor& other) const;
     Tensor operator*(float scalar) const;
     Tensor matmul(const Tensor& other) const;
+    Tensor sum() const;
+    Tensor mean() const;
 
     Tensor detach() const;
 

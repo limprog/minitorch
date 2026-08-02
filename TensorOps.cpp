@@ -165,7 +165,37 @@ Tensor Tensor::operator*(float scalar) const {
 }
 
 
+Tensor Tensor::sum() const {
+    Tensor result({1}, 0, requires_grad());
+
+    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
+        result.storage_->data_[0] += storage_->data_[i];
+    }
+
+    if (requires_grad()) {
+        const auto A_shape = this->shape_;
+        const auto A_node = this->node_;
+
+        result.node_->parents.push_back(A_node);
+        result.node_->backward_fn = [A_node, A_shape](const Tensor& grad_out) {
+            Tensor grad = Tensor(A_shape, grad_out.storage_->data_[0], false);
+            accumulate_grad(A_node, grad);
+        };
+    }
+    else {
+        result.node_.reset();
+    }
+    return result;
+}
+
+
+Tensor Tensor::mean() const {
+    return sum() * (1.0f / static_cast<float>(storage_->data_.size()));
+}
+
+
 Tensor operator*(float scalar, const Tensor& other) {
     return other * scalar;
 }
+
 
