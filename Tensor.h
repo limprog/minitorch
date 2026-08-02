@@ -4,6 +4,7 @@
 #include <ostream>
 #include <type_traits>
 #include <functional>
+#include <unordered_set>
 
 
 struct Storage {
@@ -39,8 +40,6 @@ private:
 
     std::size_t batch_offset(std::size_t batch_index) const;
 
-
-
     void batched_matmul(const Tensor& other,
         Tensor& result,
         std::size_t rows,
@@ -50,6 +49,11 @@ private:
 
     void accumulate_grad(const Tensor& grad) const;
     static void accumulate_grad(const std::shared_ptr<AutogradNode>& node, const Tensor& grad);
+    static void build_path(
+        const std::shared_ptr<AutogradNode>& node,
+        std::unordered_set<AutogradNode*>& visited,
+        std::vector<std::shared_ptr<AutogradNode>>& path
+        );
 
 
     Tensor copy_for_operation() const;
@@ -63,7 +67,7 @@ public:
     const float& operator()(const std::initializer_list<std::size_t>& indices) const;
 
     template<typename... Indices>
-   float& operator[](Indices... indices) {
+    float& operator[](Indices... indices) {
        static_assert(
            (std::is_convertible_v<Indices, std::size_t> && ...),
            "Tensor indices must be integer-like"
@@ -93,6 +97,8 @@ public:
     const std::vector<std::size_t>& get_shape();
 
     bool requires_grad() const;
+    void backward() const;
+    Tensor grad() const;
 
     Tensor& fill_(float value);
 
@@ -119,6 +125,8 @@ public:
     Tensor matmul(const Tensor& other) const;
     Tensor sum() const;
     Tensor mean() const;
+
+
 
     Tensor detach() const;
 
