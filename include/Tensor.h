@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 #include <cstddef>
 #include <memory>
@@ -5,7 +7,6 @@
 #include <type_traits>
 #include <functional>
 #include <unordered_set>
-
 
 struct Storage {
     std::vector<float> data_;
@@ -107,12 +108,19 @@ public:
         )];
     };
 
-    const std::vector<std::size_t>& get_shape();
+    const std::vector<std::size_t>& shape();
+    void flat_index_fill(std::size_t index, float value);
 
     bool requires_grad() const;
     void backward() const;
     Tensor grad() const;
 
+
+    // TODO: crated tesnsors
+
+    std::size_t numel() const;
+
+    //full
     Tensor& fill_(float value);
 
     Tensor& reshape_(std::initializer_list<std::size_t> shape);
@@ -124,6 +132,7 @@ public:
     Tensor unsqueeze(std::size_t axis) const;
     Tensor& squeeze_(std::size_t axis);
     Tensor squeeze(std::size_t axis) const;
+
 
     Tensor transpose(std::size_t dim1, std::size_t dim2) const;
     Tensor T() const;

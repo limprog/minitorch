@@ -140,15 +140,22 @@ const float& Tensor::operator()(const std::initializer_list<std::size_t>& indice
 }
 
 
-const std::vector<std::size_t>& Tensor::get_shape() {
+const std::vector<std::size_t>& Tensor::shape() {
     return shape_;
 }
+
+
+void Tensor::flat_index_fill(std::size_t index, float value) {
+    storage_->data_[index] = value;
+}
+
 
 
 Tensor& Tensor::fill_(float value) {
     std::fill(storage_->data_.begin(), storage_->data_.end(), value);
     return *this;
 }
+
 
 
 Tensor Tensor::copy() const {
@@ -190,6 +197,17 @@ Tensor Tensor::detach() const {
 
     return result;
 }
+
+
+std::size_t Tensor::numel() const {
+
+    std::size_t result = 1;
+    for (std::size_t i = 0; i < shape_.size(); i++) {
+        result *= shape_[i];
+    }
+    return result;
+}
+
 
 
 std::ostream& operator<<(std::ostream& os, const Tensor& tensor) {
