@@ -508,3 +508,52 @@ Tensor Tensor::sum(std::size_t dim, bool keep_dim) const {
     return result;
 }
 
+
+Tensor Tensor::max(std::size_t dim, bool keep_dim) const{
+    if (dim >= shape_.size()) {
+        throw std::invalid_argument("Tensor::sum: dimension out of range");
+    }
+
+    auto new_shape = shape_;
+    new_shape[dim] = 1;
+
+    Tensor result(new_shape, -std::numeric_limits<float>::infinity(), false);
+
+    std::vector<std::size_t> indices(result.shape_.size());
+
+    for (std::size_t flat = 0; flat < result.numel(); flat++) {
+        indices = get_logic_index(flat);
+        const std::size_t index = broadcast_index(indices, result.shape_, result.strides_);
+
+        result.storage_->data_[index] = std::max(storage_->data_[flatten_index(indices)], result.storage_->data_[index]);
+    }
+    if (!keep_dim) {
+        result = result.squeeze(dim);
+    }
+    return result;
+}
+
+
+Tensor Tensor::min(std::size_t dim, bool keep_dim) const{
+    if (dim >= shape_.size()) {
+        throw std::invalid_argument("Tensor::sum: dimension out of range");
+    }
+
+    auto new_shape = shape_;
+    new_shape[dim] = 1;
+
+    Tensor result(new_shape, std::numeric_limits<float>::infinity(), false);
+
+    std::vector<std::size_t> indices(result.shape_.size());
+
+    for (std::size_t flat = 0; flat < result.numel(); flat++) {
+        indices = get_logic_index(flat);
+        const std::size_t index = broadcast_index(indices, result.shape_, result.strides_);
+
+        result.storage_->data_[index] = std::min(storage_->data_[flatten_index(indices)], result.storage_->data_[index]);
+    }
+    if (!keep_dim) {
+        result = result.squeeze(dim);
+    }
+    return result;
+}

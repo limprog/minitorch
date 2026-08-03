@@ -185,6 +185,8 @@ public:
     Tensor leaky_relu(float alpha) const;
 
     Tensor sum(std::size_t dim, bool keep_dim=false) const;
+    Tensor min(std::size_t dim, bool keep_dim=false) const;
+    Tensor max(std::size_t dim, bool keep_dim=false) const;
 
     Tensor detach() const;
 
