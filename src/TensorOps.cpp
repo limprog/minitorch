@@ -521,7 +521,7 @@ Tensor Tensor::max(std::size_t dim, bool keep_dim) const{
 
     std::vector<std::size_t> indices(result.shape_.size());
 
-    for (std::size_t flat = 0; flat < result.numel(); flat++) {
+    for (std::size_t flat = 0; flat < numel(); flat++) {
         indices = get_logic_index(flat);
         const std::size_t index = broadcast_index(indices, result.shape_, result.strides_);
 
@@ -546,7 +546,7 @@ Tensor Tensor::min(std::size_t dim, bool keep_dim) const{
 
     std::vector<std::size_t> indices(result.shape_.size());
 
-    for (std::size_t flat = 0; flat < result.numel(); flat++) {
+    for (std::size_t flat = 0; flat < numel(); flat++) {
         indices = get_logic_index(flat);
         const std::size_t index = broadcast_index(indices, result.shape_, result.strides_);
 
