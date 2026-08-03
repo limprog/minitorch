@@ -320,8 +320,16 @@ void Tensor::sub_(const Tensor &other, float alpha) {
         throw std::invalid_argument("Tensor::sub_: shape mismatch");
     }
 
+    if (!is_contiguous()) {
+        throw std::runtime_error(
+            "Tensor::sub_: in-place update requires contiguous tensor"
+        );
+    }
+
+    Tensor other_sub = other.detach().contiguous();
+
     for (std::size_t i = 0; i < storage_->data_.size(); i++) {
-        storage_->data_[i] -= other.storage_->data_[i] *  alpha;
+        storage_->data_[i] -= other_sub.storage_->data_[i] *  alpha;
     }
 }
 

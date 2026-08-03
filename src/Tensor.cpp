@@ -129,6 +129,31 @@ Tensor Tensor::contiguous() const {
 }
 
 
+void Tensor::contiguous_() {
+    if (is_contiguous()) {
+        return;
+    }
+
+    std::vector<float> new_data(numel());
+
+    for (std::size_t i = 0; i < numel(); ++i) {
+        const auto indices = get_logic_index(i);
+
+        new_data[i] =
+            storage_->data_[flatten_index(indices)];
+    }
+
+
+    auto new_storage = std::make_shared<Storage>();
+    new_storage->data_ = std::move(storage_->data_);
+
+    storage_ = std::move(new_storage);
+
+    calculate_strides();
+}
+
+
+
 
 std::size_t Tensor::batch_offset(std::size_t batch_index) const {
     std::size_t offset = 0;

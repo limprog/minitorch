@@ -24,9 +24,7 @@ private:
 
     std::shared_ptr<AutogradNode> node_;
 
-    bool is_contiguous() const;
-    Tensor contiguous() const;
-
+    void contiguous_();
 
     void calculate_strides();
 
@@ -78,6 +76,9 @@ public:
 
     Tensor(const std::initializer_list<std::size_t>& shape, float value = 0.0f, bool requires_grad = true);
     Tensor(const std::vector<std::size_t>& shape, float value = 0.0f, bool requires_grad = true);
+
+    bool is_contiguous() const;
+    Tensor contiguous() const;
 
     float& operator() (const std::initializer_list<std::size_t>& indices);
     const float& operator()(const std::initializer_list<std::size_t>& indices) const;
