@@ -544,7 +544,7 @@ Tensor Tensor::min(std::size_t dim, bool keep_dim) const{
 
     Tensor result(new_shape, std::numeric_limits<float>::infinity(), false);
 
-    std::vector<std::size_t> indices(result.shape_.size());
+    std::vector<std::size_t> indices(shape_.size());
 
     for (std::size_t flat = 0; flat < numel(); flat++) {
         indices = get_logic_index(flat);
