@@ -25,11 +25,13 @@ private:
     std::shared_ptr<AutogradNode> node_;
 
     bool is_contiguous() const;
+    Tensor contiguous() const;
+
 
     void calculate_strides();
 
     std::size_t flatten_index(std::vector<std::size_t> indices) const;
-
+    std::vector<std::size_t> get_logic_index(std::size_t index) const;
     void matmul_matrix_kernel(
         const Tensor& other,
         Tensor& result,
@@ -159,25 +161,29 @@ public:
     Tensor operator-(const Tensor& other) const;
     Tensor operator-() const;
     Tensor operator*(const Tensor& other) const;
+    Tensor operator/(const Tensor& other) const;
     Tensor operator*(float scalar) const;
+    Tensor operator/(float scalar) const;
     Tensor matmul(const Tensor& other) const;
 
     void sub_(const Tensor& other, float alpha);
 
     Tensor sum() const;
     Tensor mean() const;
+
+    Tensor exp() const;
+    Tensor log() const;
+
     Tensor where(const std::function<bool(float)>& condition, float if_true, float if_false ) const;
     Tensor relu() const;
     Tensor leaky_relu(float alpha) const;
-
-
 
     Tensor detach() const;
 
     Tensor copy() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Tensor& tensor);
-
+    friend Tensor operator/(float scalar, const Tensor& tensor);
 };
 
 

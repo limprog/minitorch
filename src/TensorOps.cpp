@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <regex>
+#include <valarray>
 
 
 std::size_t Tensor::broadcast_index(
@@ -215,6 +216,48 @@ Tensor Tensor::operator*(const Tensor& other) const{
     return result;
 }
 
+
+Tensor Tensor::operator/(const Tensor& other) const {
+    for (float i : other.storage_->data_) {
+        if (i == 0.0f)
+            throw std::invalid_argument("Tensor::operator/: division by zero");
+    }
+
+    Tensor result = binary_operation_kernel(other, [](float lhs, float rhs){return lhs / rhs;});
+
+    if (requires_grad() || other.requires_grad()) {
+        const auto A_node = this->node_;
+        const auto B_node = other.node_;
+
+        const auto A_data = this->detach();
+        const auto B_data = other.detach();
+        result.node_ = std::make_shared<AutogradNode>();
+
+        if (A_node) {
+            result.node_->parents.push_back(A_node);
+        }
+        if (B_node) {
+            result.node_->parents.push_back(B_node);
+        }
+
+        result.node_->backward_fn = [A_node, B_node, A_data, B_data](const Tensor& grad_out) {
+            if (A_node) {
+                Tensor grad_A = grad_out / B_data;
+                grad_A = sum_to_shape_without_grad(grad_A, A_data.shape_);
+                accumulate_grad(A_node, grad_A);
+            }
+            if (B_node) {
+                Tensor grad_b = -grad_out * (A_data / B_data / B_data);
+                grad_b = sum_to_shape_without_grad(grad_b, B_data.shape_);
+                accumulate_grad(B_node, grad_b);
+            }
+        };
+    }
+
+    return  result;
+}
+
+
 Tensor Tensor::operator*(float scalar) const {
     Tensor result = copy_for_operation();
 
@@ -228,6 +271,41 @@ Tensor Tensor::operator*(float scalar) const {
 
         result.node_->backward_fn = [scalar, A_node](const Tensor& grad_out) {
             accumulate_grad(A_node, grad_out * scalar);
+        };
+    } else {
+        result.node_.reset();
+    }
+
+    return result;
+}
+
+
+Tensor Tensor::operator/(float scalar) const {
+    if (scalar == 0.0f) {
+        throw std::invalid_argument(
+            "Tensor::operator/: division by zero"
+        );
+    }
+
+    return *this * (1.0f / scalar);
+}
+
+
+Tensor operator/(float scalar, const Tensor& tensor) {
+    Tensor result = tensor.copy_for_operation();
+
+    for (std::size_t i = 0; i < result.storage_->data_.size(); i++) {
+        result.storage_->data_[i] = scalar / result.storage_->data_[i];
+    }
+
+    if (tensor.requires_grad()) {
+        const auto A_node = tensor.node_;
+        const auto A_data = tensor.detach();
+
+        result.node_->parents.push_back(A_node);
+
+        result.node_->backward_fn = [scalar, A_node, A_data](const Tensor& grad_out) {
+            Tensor::accumulate_grad(A_node, grad_out * (-scalar) / A_data / A_data);
         };
     } else {
         result.node_.reset();
@@ -275,6 +353,56 @@ Tensor Tensor::sum() const {
 
 Tensor Tensor::mean() const {
     return sum() * (1.0f / static_cast<float>(storage_->data_.size()));
+}
+
+
+Tensor Tensor::exp() const{
+    Tensor result = copy_for_operation();
+
+    for (std::size_t i = 0; i < numel(); i++) {
+        result.storage_->data_[i] = std::exp(result.storage_->data_[i]);
+    }
+
+    if (requires_grad()) {
+        const auto parent_node = this->node_;
+        const auto parent_exp = result.detach();
+
+        result.node_ = std::make_shared<AutogradNode>();
+
+        result.node_->parents.push_back(parent_node);
+        result.node_->backward_fn = [parent_node, parent_exp](const Tensor& grad_out) {
+            accumulate_grad(parent_node, grad_out * parent_exp);
+        };
+    }else {
+        result.node_.reset();
+    }
+
+    return result;
+}
+
+
+Tensor Tensor::log() const {
+    Tensor result = copy_for_operation();
+
+    for (std::size_t i = 0; i < numel(); i++) {
+        result.storage_->data_[i] = std::log(result.storage_->data_[i]);
+    }
+
+    if (requires_grad()) {
+        const auto parent_node = this->node_;
+        const auto parent_data = this->detach();
+
+        result.node_ = std::make_shared<AutogradNode>();
+        result.node_->parents.push_back(parent_node);
+
+        result.node_->backward_fn = [parent_node, parent_data](const Tensor& grad_out) {
+            accumulate_grad(parent_node, grad_out * (1 / parent_data));
+        };
+    }else {
+        result.node_.reset();
+    }
+
+    return result;
 }
 
 

@@ -81,6 +81,55 @@ std::size_t Tensor::flatten_index(std::vector<std::size_t> indices) const {
 }
 
 
+std::vector<std::size_t> Tensor::get_logic_index(std::size_t index) const {
+    if (index >= numel()) {
+        throw std::invalid_argument("Tensor::unflatten_index: index out of range");
+    }
+
+    std::size_t flat = index;
+    std::vector<std::size_t> result;
+    result.resize(shape_.size());
+
+
+    for (std::size_t dim = shape_.size(); dim-- > 0;) {
+        result[dim] = flat % shape_[dim];
+        flat /= shape_[dim];
+    }
+
+    return result;
+}
+
+
+Tensor Tensor::contiguous() const {
+    if (is_contiguous()) {
+        return *this;
+    }
+
+    Tensor result = Tensor(shape_, 0.0f, false);
+    std::vector<std::size_t> indices;
+
+
+    for (std::size_t i = 0; i < result.numel(); i++) {
+        indices = get_logic_index(i);
+        result.storage_->data_[i] = storage_->data_[flatten_index(indices)];
+    }
+
+    if (requires_grad()) {
+        auto parent_node = node_;
+
+        result.node_ = std::make_shared<AutogradNode>();
+        result.node_->parents.push_back(parent_node);
+
+        result.node_->backward_fn = [parent_node](const Tensor& grad_out) {
+            accumulate_grad(parent_node, grad_out);
+        };
+    }
+
+    return result;
+}
+
+
+
 std::size_t Tensor::batch_offset(std::size_t batch_index) const {
     std::size_t offset = 0;
 
