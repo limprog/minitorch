@@ -29,6 +29,8 @@ private:
     void calculate_strides();
 
     std::size_t flatten_index(std::vector<std::size_t> indices) const;
+    static std::size_t flatten_index(std::vector<std::size_t> indices, std::vector<std::size_t> strides);
+
     std::vector<std::size_t> get_logic_index(std::size_t index) const;
     void matmul_matrix_kernel(
         const Tensor& other,
@@ -149,6 +151,9 @@ public:
     Tensor& reshape_(std::vector<std::size_t> shape);
     Tensor reshape(std::vector<std::size_t> shape) const;
 
+    Tensor expand(std::initializer_list<std::size_t> new_shape) const;
+    Tensor expand(std::vector<std::size_t> new_shape) const;
+
     Tensor& unsqueeze_(std::size_t axis);
     Tensor unsqueeze(std::size_t axis) const;
     Tensor& squeeze_(std::size_t axis);
@@ -178,6 +183,8 @@ public:
     Tensor where(const std::function<bool(float)>& condition, float if_true, float if_false ) const;
     Tensor relu() const;
     Tensor leaky_relu(float alpha) const;
+
+    Tensor sum(std::size_t dim, bool keep_dim=false) const;
 
     Tensor detach() const;
 

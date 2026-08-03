@@ -52,7 +52,7 @@ Tensor Tensor::binary_operation_kernel(const Tensor &other, const std::function<
 
     std::vector<std::size_t> indices(new_shape.size());
 
-    for (std::size_t flat = 0; flat < result.storage_->data_.size(); flat++) {
+    for (std::size_t flat = 0; flat < result.numel(); flat++) {
         std::size_t temp = flat;
 
         for (std::size_t dim = new_shape.size(); dim-- > 0; ) {
@@ -77,14 +77,11 @@ Tensor Tensor::sum_to_shape_without_grad(const Tensor &tensor, const std::vector
         );
     }
 
-    if (!tensor.is_contiguous())
-        throw std::invalid_argument("Tensor::sum_to_shape_without_grad: tensor is not contiguous");
-
     Tensor result(new_shape, 0.0f, false);
 
     std::vector<std::size_t> indices(tensor.shape_.size());
 
-    for (std::size_t flat = 0; flat < tensor.storage_->data_.size(); flat++) {
+    for (std::size_t flat = 0; flat < tensor.numel(); flat++) {
         std::size_t temp = flat;
         for (std::size_t dim = tensor.shape_.size(); dim-- > 0; ) {
             indices[dim] = temp % tensor.shape_[dim];
@@ -92,7 +89,7 @@ Tensor Tensor::sum_to_shape_without_grad(const Tensor &tensor, const std::vector
         }
         const std::size_t index = broadcast_index(indices, result.shape_, result.strides_);
 
-        result.storage_->data_[index] += tensor.storage_->data_[flat];
+        result.storage_->data_[index] += tensor.storage_->data_[Tensor::flatten_index(indices, tensor.strides_)];
     }
     return result;
 }
@@ -261,7 +258,7 @@ Tensor Tensor::operator/(const Tensor& other) const {
 Tensor Tensor::operator*(float scalar) const {
     Tensor result = copy_for_operation();
 
-    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
+    for (std::size_t i = 0; i < numel(); i++) {
         result.storage_->data_[i] = storage_->data_[i] * scalar;
     }
 
@@ -294,7 +291,7 @@ Tensor Tensor::operator/(float scalar) const {
 Tensor operator/(float scalar, const Tensor& tensor) {
     Tensor result = tensor.copy_for_operation();
 
-    for (std::size_t i = 0; i < result.storage_->data_.size(); i++) {
+    for (std::size_t i = 0; i < result.numel(); i++) {
         result.storage_->data_[i] = scalar / result.storage_->data_[i];
     }
 
@@ -328,7 +325,7 @@ void Tensor::sub_(const Tensor &other, float alpha) {
 
     Tensor other_sub = other.detach().contiguous();
 
-    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
+    for (std::size_t i = 0; i < numel(); i++) {
         storage_->data_[i] -= other_sub.storage_->data_[i] *  alpha;
     }
 }
@@ -338,7 +335,7 @@ void Tensor::sub_(const Tensor &other, float alpha) {
 Tensor Tensor::sum() const {
     Tensor result({1}, 0, requires_grad());
 
-    for (std::size_t i = 0; i < storage_->data_.size(); i++) {
+    for (std::size_t i = 0; i < numel(); i++) {
         result.storage_->data_[0] += storage_->data_[i];
     }
 
@@ -360,7 +357,7 @@ Tensor Tensor::sum() const {
 
 
 Tensor Tensor::mean() const {
-    return sum() * (1.0f / static_cast<float>(storage_->data_.size()));
+    return sum() * (1.0f / static_cast<float>(numel()));
 }
 
 
@@ -481,4 +478,33 @@ Tensor operator*(float scalar, const Tensor& other) {
     return other * scalar;
 }
 
+
+Tensor Tensor::sum(std::size_t dim, bool keep_dim) const {
+    if (dim >= shape_.size()) {
+        throw std::invalid_argument("Tensor::sum: dimension out of range");
+    }
+
+    auto new_shape = shape_;
+    new_shape[dim] = 1;
+    Tensor result = sum_to_shape_without_grad(*this, new_shape);
+    if (!keep_dim) {
+        result = result.squeeze(dim);
+    }
+    if (requires_grad()) {
+        const auto A_node = this->node_;
+        const auto old_shape = shape_;
+
+        result.node_ = std::make_shared<AutogradNode>();
+        result.node_->parents.push_back(A_node);
+
+        result.node_->backward_fn = [A_node, old_shape, dim, keep_dim](const Tensor& grad_out) {
+            Tensor grad_A = grad_out.detach();
+            if (!keep_dim) {
+                grad_A = grad_out.unsqueeze(dim);
+            }
+            accumulate_grad(A_node, grad_A.expand(old_shape).contiguous());
+        };
+    }
+    return result;
+}
 

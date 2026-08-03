@@ -132,7 +132,7 @@ Tensor& Tensor::reshape_(std::initializer_list<std::size_t> shape) {
         shape.end(),
         std::size_t{1},
         std::multiplies<std::size_t>());
-    if (new_size != storage_->data_.size()) {
+    if (new_size != numel()) {
         throw std::invalid_argument("Tensor::reshape: new_size should be equal to storege_->data_.size()");
     }
 
@@ -154,7 +154,7 @@ Tensor& Tensor::reshape_(std::vector<std::size_t> shape) {
         shape.end(),
         std::size_t{1},
         std::multiplies<std::size_t>());
-    if (new_size != storage_->data_.size()) {
+    if (new_size != numel()) {
         throw std::invalid_argument("Tensor::reshape: new_size should be equal to storege_->data_.size()");
     }
 
@@ -212,5 +212,71 @@ Tensor Tensor::reshape(std::vector<std::size_t> shape) const{
     } else {
       result.node_.reset();
     }
+    return result;
+}
+
+
+Tensor Tensor::expand(std::initializer_list<std::size_t> new_shape) const {
+    if (shape_.size() != new_shape.size()) {
+        throw std::invalid_argument("Tensor::expand: shape must be equal to Tensor::shape");
+    }
+
+    Tensor result = *this;
+    result.node_ = std::make_shared<AutogradNode>();
+    std::vector<std::size_t> shape(new_shape);
+    for (std::size_t i = 0; i < shape_.size(); i++) {
+        if (shape_[i] != shape[i] && shape_[i] != 1) {
+            throw std::invalid_argument("Tensor::expand: shape must be equal to Tensor::shape");
+        }
+        if (shape_[i] != shape[i]) {
+            result.shape_[i] = shape[i];
+            result.strides_[i] = 0;
+        }
+    }
+
+    if (requires_grad()) {
+        const auto parent_node = node_;
+        result.node_->parents = {parent_node};
+
+        result.node_->backward_fn = [old_shape=shape_, parent_node](const Tensor& grad_out) {
+            accumulate_grad(parent_node, sum_to_shape_without_grad(grad_out, old_shape));
+        };
+    } else {
+        result.node_.reset();
+    }
+
+    return result;
+}
+
+
+Tensor Tensor::expand(std::vector<std::size_t> new_shape) const {
+    if (shape_.size() != new_shape.size()) {
+        throw std::invalid_argument("Tensor::expand: shape must be equal to Tensor::shape");
+    }
+
+    Tensor result = *this;
+    result.node_ = std::make_shared<AutogradNode>();
+    auto shape = new_shape;
+    for (std::size_t i = 0; i < shape_.size(); i++) {
+        if (shape_[i] != shape[i] && shape_[i] != 1) {
+            throw std::invalid_argument("Tensor::expand: shape must be equal to Tensor::shape");
+        }
+        if (shape_[i] != shape[i]) {
+            result.shape_[i] = shape[i];
+            result.strides_[i] = 0;
+        }
+    }
+
+    if (requires_grad()) {
+        const auto parent_node = node_;
+        result.node_->parents = {parent_node};
+
+        result.node_->backward_fn = [old_shape=shape_, parent_node](const Tensor& grad_out) {
+            accumulate_grad(parent_node, sum_to_shape_without_grad(grad_out, old_shape));
+        };
+    } else {
+        result.node_.reset();
+    }
+
     return result;
 }

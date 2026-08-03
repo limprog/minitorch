@@ -81,6 +81,22 @@ std::size_t Tensor::flatten_index(std::vector<std::size_t> indices) const {
 }
 
 
+
+std::size_t Tensor::flatten_index(std::vector<std::size_t> indices, std::vector<std::size_t> strides) {
+    if (strides.size() != indices.size()) {
+        throw std::invalid_argument("Tensor::flatten_index: indices should be the same size");
+    }
+
+    std::size_t flat_index = 0;
+
+    for (std::size_t i = 0; i < indices.size(); i++) {
+        flat_index += indices[i] * strides[i];
+    }
+
+    return flat_index;
+}
+
+
 std::vector<std::size_t> Tensor::get_logic_index(std::size_t index) const {
     if (index >= numel()) {
         throw std::invalid_argument("Tensor::unflatten_index: index out of range");
